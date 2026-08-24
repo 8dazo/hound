@@ -79,7 +79,7 @@ class OpenAPIFetcher:
             resolved_paths = {}
             for path_key, path_val in paths.items():
                 resolved_paths[path_key] = self._resolve_refs(
-                    path_val, root=spec, visited=set(), ref_depth=0, max_ref_depth=5
+                    path_val, root=spec, visited=set(), ref_depth=0, max_ref_depth=1
                 )
             spec["paths"] = resolved_paths
         return spec
@@ -90,7 +90,7 @@ class OpenAPIFetcher:
         root: dict[str, Any],
         visited: set[str],
         ref_depth: int = 0,
-        max_ref_depth: int = 5,
+        max_ref_depth: int = 1,
     ) -> Any:
         """Recursively resolve $ref pointers within path nodes."""
         if ref_depth > max_ref_depth:
