@@ -83,7 +83,7 @@ class GitHubIssueReporter:
         body_lines.extend(
             [
                 "---",
-                f"*Generated automatically by [Hound](https://github.com/your-org/hound) · Spec Hash: `{content_hash[:12]}`*",
+                f"*Generated automatically by [Hound](https://github.com/8dazo/hound) · Spec Hash: `{content_hash[:12]}`*",
                 f"<!-- hound-hash:{content_hash} -->",
             ]
         )
