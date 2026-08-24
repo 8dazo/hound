@@ -2,7 +2,7 @@
 
 **Hound watches the third-party APIs your code depends on, and tells you exactly when — and where — a change will break you.**
 
-[![CI](https://img.shields.io/github/actions/workflow/status/your-org/hound/ci.yml?branch=main)](https://github.com/your-org/hound/actions)
+[![CI](https://github.com/8dazo/hound/actions/workflows/ci.yml/badge.svg)](https://github.com/8dazo/hound/actions)
 [![PyPI](https://img.shields.io/pypi/v/hound-watchdog)](https://pypi.org/project/hound-watchdog/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)](pyproject.toml)
@@ -267,7 +267,7 @@ hound/
 Issues and PRs welcome. Before opening a PR:
 
 ```bash
-git clone https://github.com/your-org/hound
+git clone https://github.com/8dazo/hound
 cd hound
 pip install -e ".[dev]"
 pytest
