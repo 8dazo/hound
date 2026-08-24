@@ -284,22 +284,21 @@ class PRReviewer:
             "Accept": "application/vnd.github.v3+json",
         }
 
-        # 1. First, post the PR review comment with summary
+        # 1. Post to PR Issue conversation timeline
+        issue_comments_url = f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments"
+        payload = {"body": result.summary}
+        requests.post(issue_comments_url, headers=headers, json=payload, timeout=15)
+
+        # 2. Also submit formal PR review
         review_url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}/reviews"
-        payload = {
+        review_payload = {
             "body": result.summary,
-            "event": "COMMENT",  # Use COMMENT to avoid blocking unless explicitly required
+            "event": "COMMENT",
         }
+        review_resp = requests.post(review_url, headers=headers, json=review_payload, timeout=15)
+        review_id = review_resp.json().get("id") if review_resp.status_code in (200, 201) else None
 
-        resp = requests.post(review_url, headers=headers, json=payload, timeout=15)
-        if resp.status_code not in (200, 201):
-            logger.error(f"Failed to post GitHub PR review: {resp.text}")
-            return {"status": "error", "message": resp.text}
-
-        review_data = resp.json()
-        review_id = review_data.get("id")
-
-        # 2. Post inline comments on diff lines
+        # 3. Post inline comments on diff lines
         comments_url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}/comments"
         posted_comments = 0
 
