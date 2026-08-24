@@ -15,6 +15,7 @@ from hound.reporter.github_issue import GitHubIssueReporter
 from hound.reporter.slack_notify import SlackReporter
 from hound.store.snapshot_store import LocalSnapshotStore, SnapshotStore
 from hound.usage_scanner.ast_scanner import ASTScanner
+from hound.usage_scanner.ts_scanner import TSScanner
 
 logger = logging.getLogger(__name__)
 
@@ -49,12 +50,14 @@ class HoundAgent:
         store: SnapshotStore | None = None,
         diff_engine: SpecDiffEngine | None = None,
         scanner: ASTScanner | None = None,
+        ts_scanner: TSScanner | None = None,
         fetcher: OpenAPIFetcher | None = None,
     ) -> None:
         self.config = config
         self.store = store or LocalSnapshotStore()
         self.diff_engine = diff_engine or SpecDiffEngine()
         self.scanner = scanner or ASTScanner()
+        self.ts_scanner = ts_scanner or TSScanner()
         self.fetcher = fetcher or OpenAPIFetcher()
         self.github_reporter = GitHubIssueReporter(config.report.github_issues)
         self.slack_reporter = SlackReporter(config.report.slack)
@@ -129,8 +132,11 @@ class HoundAgent:
 
         # 3. Scan codebase for usage
         usage_records: list[UsageRecord] = []
+        scanner = (
+            self.ts_scanner if target.language in ("typescript", "javascript") else self.scanner
+        )
         for scan_path in target.scan_paths:
-            found = self.scanner.scan_directory(scan_path)
+            found = scanner.scan_directory(scan_path)
             usage_records.extend(found)
         result.usage_sites = usage_records
 
