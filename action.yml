@@ -1,0 +1,77 @@
+name: "Hound API Watchdog"
+description: "Watch third-party APIs your code depends on and detect breaking changes intersecting your codebase."
+author: "Hound Team"
+branding:
+  icon: "search"
+  color: "yellow"
+
+inputs:
+  config:
+    description: "Path to hound.yaml configuration file"
+    required: false
+    default: "hound.yaml"
+  version:
+    description: "Version of hound-watchdog to install (default: latest)"
+    required: false
+    default: "latest"
+  dry-run:
+    description: "Run in dry-run mode without advancing baseline or opening issues"
+    required: false
+    default: "false"
+  verbose:
+    description: "Show all changes including non-breaking / unaffected ones"
+    required: false
+    default: "false"
+  format:
+    description: "Output format: text | json | sarif"
+    required: false
+    default: "text"
+  output:
+    description: "Output file path for json or sarif formats"
+    required: false
+    default: ""
+
+outputs:
+  breaking-count:
+    description: "Total number of breaking changes detected"
+    value: ${{ steps.run-hound.outputs.breaking-count }}
+  findings-count:
+    description: "Total number of relevant findings detected"
+    value: ${{ steps.run-hound.outputs.findings-count }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install Hound
+      shell: bash
+      run: |
+        if [ "${{ inputs.version }}" = "latest" ]; then
+          pip install --upgrade hound-watchdog
+        else
+          pip install hound-watchdog==${{ inputs.version }}
+        fi
+
+    - name: Run Hound Check
+      id: run-hound
+      shell: bash
+      run: |
+        CMD="hound check --config ${{ inputs.config }}"
+        if [ "${{ inputs.dry-run }}" = "true" ]; then
+          CMD="$CMD --dry-run"
+        fi
+        if [ "${{ inputs.verbose }}" = "true" ]; then
+          CMD="$CMD --verbose"
+        fi
+        if [ -n "${{ inputs.format }}" ] && [ "${{ inputs.format }}" != "text" ]; then
+          CMD="$CMD --format ${{ inputs.format }}"
+        fi
+        if [ -n "${{ inputs.output }}" ]; then
+          CMD="$CMD --output ${{ inputs.output }}"
+        fi
+        echo "Executing: $CMD"
+        $CMD

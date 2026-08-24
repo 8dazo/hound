@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 from typing import Any
@@ -15,7 +16,9 @@ from hound.agent import HoundAgent
 from hound.config import generate_default_config, load_config
 from hound.diffing.spec_diff import SpecDiffEngine
 from hound.fetchers.openapi_fetcher import OpenAPIFetcher
+from hound.reporter.sarif import SARIFExporter
 from hound.store.snapshot_store import LocalSnapshotStore
+from hound.wizard import AutoDiscoveryWizard
 
 console = Console()
 err_console = Console(stderr=True)
@@ -62,15 +65,28 @@ def main() -> None:
     is_flag=True,
     help="Also scaffold GitHub Action workflow (.github/workflows/hound.yml)",
 )
+@click.option(
+    "--detect",
+    is_flag=True,
+    help="Auto-detect third-party API dependencies in the current codebase",
+)
 @click.option("--force", is_flag=True, help="Overwrite existing configuration file")
-def cmd_init(with_action: bool, force: bool) -> None:
+def cmd_init(with_action: bool, detect: bool, force: bool) -> None:
     """Scaffold hound.yaml in the current repository."""
     config_path = Path("hound.yaml")
     if config_path.exists() and not force:
         err_console.print("[yellow]hound.yaml already exists. Use --force to overwrite.[/yellow]")
         sys.exit(0)
 
-    config_content = generate_default_config(with_action=with_action)
+    if detect:
+        wizard = AutoDiscoveryWizard()
+        config_content = wizard.generate_config()
+        console.print(
+            "[cyan]🔍 Auto-detected API dependencies and scaffolded tailored config.[/cyan]"
+        )
+    else:
+        config_content = generate_default_config(with_action=with_action)
+
     config_path.write_text(config_content, encoding="utf-8")
     console.print("[green]✔ Created hound.yaml[/green]")
 
@@ -164,7 +180,24 @@ def cmd_validate(config: str) -> None:
 @click.option(
     "--verbose", is_flag=True, help="Show all changes including non-breaking and unaffected"
 )
-def cmd_check(config: str, target: str | None, dry_run: bool, verbose: bool) -> None:
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["text", "json", "sarif"]),
+    default="text",
+    help="Output format (text, json, sarif)",
+)
+@click.option(
+    "--output", "output_file", default=None, help="File path to write json or sarif output"
+)
+def cmd_check(
+    config: str,
+    target: str | None,
+    dry_run: bool,
+    verbose: bool,
+    output_format: str,
+    output_file: str | None,
+) -> None:
     """Run full check cycle: fetch, diff, scan, correlate, report."""
     try:
         agent = HoundAgent.from_config_path(config)
@@ -178,8 +211,30 @@ def cmd_check(config: str, target: str | None, dry_run: bool, verbose: bool) -> 
         err_console.print(f"[red]Check failed:[/red] {e}")
         sys.exit(2)
 
-    # Render results with rich CLI formatting
-    _render_check_output(summary, verbose=verbose, dry_run=dry_run)
+    # Collect all findings across targets
+    all_findings = []
+    for res in summary.results:
+        all_findings.extend(res.findings)
+
+    if output_format == "sarif":
+        exporter = SARIFExporter()
+        sarif_json = exporter.export_json(all_findings)
+        if output_file:
+            Path(output_file).write_text(sarif_json, encoding="utf-8")
+            console.print(f"[green]✔ Exported SARIF results to {output_file}[/green]")
+        else:
+            click.echo(sarif_json)
+    elif output_format == "json":
+        json_output = json.dumps([f.model_dump() for f in all_findings], indent=2)
+        if output_file:
+            Path(output_file).write_text(json_output, encoding="utf-8")
+            console.print(f"[green]✔ Exported JSON results to {output_file}[/green]")
+        else:
+            click.echo(json_output)
+    else:
+        # Render results with rich CLI formatting
+        _render_check_output(summary, verbose=verbose, dry_run=dry_run)
+
     sys.exit(summary.exit_code)
 
 
