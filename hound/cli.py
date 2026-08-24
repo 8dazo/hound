@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,7 @@ from hound.config import generate_default_config, load_config
 from hound.diffing.spec_diff import SpecDiffEngine
 from hound.fetchers.openapi_fetcher import OpenAPIFetcher
 from hound.reporter.sarif import SARIFExporter
+from hound.reviewer.pr_reviewer import PRReviewer
 from hound.store.snapshot_store import LocalSnapshotStore
 from hound.wizard import AutoDiscoveryWizard
 
@@ -373,6 +375,73 @@ def cmd_baseline(action: str, name: str) -> None:
             )
         else:
             console.print(f"[yellow]No snapshot found for '{name}'.[/yellow]")
+
+
+@main.command("review")
+@click.option("--config", default="hound.yaml", help="Path to hound.yaml")
+@click.option("--base", default="HEAD~1", help="Base git reference or branch (default: HEAD~1)")
+@click.option(
+    "--pr",
+    "pr_number",
+    default=None,
+    type=int,
+    help="GitHub Pull Request number to post review to",
+)
+@click.option(
+    "--repo",
+    default=None,
+    help="GitHub repository (owner/repo). Defaults to GITHUB_REPOSITORY env var",
+)
+@click.option("--token", default=None, help="GitHub token. Defaults to GITHUB_TOKEN env var")
+def cmd_review(
+    config: str, base: str, pr_number: int | None, repo: str | None, token: str | None
+) -> None:
+    """Run CodeRabbit-style PR review on git diff for API dependencies."""
+    cfg_file = Path(config)
+    if not cfg_file.is_file():
+        err_console.print(f"[red]Error: {config} not found[/red]")
+        sys.exit(2)
+
+    try:
+        hound_cfg = load_config(cfg_file)
+    except Exception as e:
+        err_console.print(f"[red]Config error:[/red] {e}")
+        sys.exit(2)
+
+    reviewer = PRReviewer(hound_cfg)
+    changed_lines = reviewer.get_git_diff_changed_lines(base_ref=base)
+    result = reviewer.review_diff(changed_lines)
+
+    console.print(result.summary)
+
+    if result.inline_comments:
+        console.print(
+            f"\n[bold yellow]💬 {len(result.inline_comments)} Inline Code Review Comment(s) Generated:[/bold yellow]"
+        )
+        for c in result.inline_comments:
+            console.print(f"  • [cyan]{c.path}:{c.line}[/cyan]")
+
+    target_repo = repo or os.environ.get("GITHUB_REPOSITORY")
+    target_token = token or os.environ.get("GITHUB_TOKEN")
+
+    if pr_number and target_repo and target_token:
+        console.print(
+            f"\n[cyan]Posting review to GitHub PR #{pr_number} on {target_repo}...[/cyan]"
+        )
+        post_res = reviewer.post_to_github_pr(
+            repo=target_repo,
+            pr_number=pr_number,
+            token=target_token,
+            result=result,
+        )
+        if post_res.get("status") == "success":
+            console.print(f"[green]✔ Successfully posted review to PR #{pr_number}![/green]")
+        else:
+            err_console.print(
+                f"[yellow]⚠ Could not post review: {post_res.get('message')}[/yellow]"
+            )
+
+    sys.exit(1 if result.verdict == "REQUEST_CHANGES" else 0)
 
 
 if __name__ == "__main__":
