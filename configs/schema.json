@@ -99,7 +99,7 @@
       "properties": {
         "provider": {
           "type": "string",
-          "enum": ["openai", "azure_openai", "huggingface_local", "none"],
+          "enum": ["openai", "openrouter", "azure_openai", "huggingface_local", "none"],
           "default": "none"
         },
         "model": {

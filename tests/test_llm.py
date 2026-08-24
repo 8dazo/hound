@@ -33,3 +33,31 @@ def test_heuristic_classifier_non_breaking():
         excerpt="We added support for French translations.",
     )
     assert res.severity == "non_breaking"
+
+
+def test_openrouter_classifier_mock(monkeypatch):
+    class MockResponse:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": '```json\n{"severity": "breaking", "summary": "Field removed"}\n```'
+                        }
+                    }
+                ]
+            }
+
+    import requests
+
+    monkeypatch.setattr(requests, "post", lambda *args, **kwargs: MockResponse())
+
+    cfg = LLMConfig(provider="openrouter", model="stealth/ox-alpha", api_key="sk-test")
+    classifier = LLMClassifier(cfg)
+    res = classifier.classify_prose_change("Heading", "Excerpt")
+
+    assert res.severity == "breaking"
+    assert res.summary == "Field removed"
