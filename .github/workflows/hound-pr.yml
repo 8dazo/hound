@@ -18,6 +18,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HOUND_APP_ID }}
+          private-key: ${{ secrets.HOUND_APP_PRIVATE_KEY }}
+
       - name: Set up uv
         uses: astral-sh/setup-uv@v3
         with:
@@ -35,7 +42,7 @@ jobs:
             --base "origin/${{ github.base_ref || 'main' }}" \
             --pr "${{ github.event.pull_request.number }}" \
             --repo "${{ github.repository }}" \
-            --token "${{ secrets.GITHUB_TOKEN }}"
+            --token "${{ steps.app-token.outputs.token }}"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}

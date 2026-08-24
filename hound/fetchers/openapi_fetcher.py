@@ -76,7 +76,8 @@ class OpenAPIFetcher:
     def normalize(self, spec: dict[str, Any]) -> dict[str, Any]:
         """Resolve internal $ref references and return fully normalized spec."""
         spec_copy = copy.deepcopy(spec)
-        return self._resolve_refs(spec_copy, root=spec_copy, visited=set(), depth=0)
+        memo: dict[str, Any] = {}
+        return self._resolve_refs(spec_copy, root=spec_copy, visited=set(), depth=0, memo=memo)
 
     def _resolve_refs(
         self,
@@ -84,9 +85,13 @@ class OpenAPIFetcher:
         root: dict[str, Any],
         visited: set[str],
         depth: int,
-        max_depth: int = 15,
+        memo: dict[str, Any] | None = None,
+        max_depth: int = 6,
     ) -> Any:
         """Recursively resolve $ref pointers within the spec document."""
+        if memo is None:
+            memo = {}
+
         if depth > max_depth:
             return node
 
@@ -98,31 +103,42 @@ class OpenAPIFetcher:
                         # Break circular ref
                         return {"type": "object", "_circular_ref": ref_path}
 
-                    resolved_target = self._lookup_json_pointer(root, ref_path[2:])
-                    if resolved_target is not None:
-                        new_visited = visited | {ref_path}
-                        # Merge any other keys alongside $ref (e.g. description override in OpenAPI 3.1)
-                        if isinstance(resolved_target, dict):
-                            resolved_expanded = self._resolve_refs(
-                                resolved_target, root, new_visited, depth + 1, max_depth
-                            )
-                            merged = copy.deepcopy(resolved_expanded)
+                    if ref_path in memo:
+                        resolved_expanded = memo[ref_path]
+                    else:
+                        resolved_target = self._lookup_json_pointer(root, ref_path[2:])
+                        if resolved_target is not None:
+                            new_visited = visited | {ref_path}
+                            if isinstance(resolved_target, dict):
+                                resolved_expanded = self._resolve_refs(
+                                    resolved_target, root, new_visited, depth + 1, memo, max_depth
+                                )
+                            else:
+                                resolved_expanded = resolved_target
+                            memo[ref_path] = resolved_expanded
+                        else:
+                            resolved_expanded = None
+
+                    if resolved_expanded is not None:
+                        if isinstance(resolved_expanded, dict):
+                            merged = dict(resolved_expanded)
                             for k, v in node.items():
                                 if k != "$ref":
                                     merged[k] = self._resolve_refs(
-                                        v, root, new_visited, depth + 1, max_depth
+                                        v, root, visited | {ref_path}, depth + 1, memo, max_depth
                                     )
                             return merged
-                        return self._resolve_refs(
-                            resolved_target, root, new_visited, depth + 1, max_depth
-                        )
+                        return resolved_expanded
 
             return {
-                k: self._resolve_refs(v, root, visited, depth, max_depth) for k, v in node.items()
+                k: self._resolve_refs(v, root, visited, depth, memo, max_depth)
+                for k, v in node.items()
             }
 
         elif isinstance(node, list):
-            return [self._resolve_refs(item, root, visited, depth, max_depth) for item in node]
+            return [
+                self._resolve_refs(item, root, visited, depth, memo, max_depth) for item in node
+            ]
 
         return node
 
