@@ -1,0 +1,61 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "hound-watchdog"
+version = "0.1.0"
+description = "Hound watches third-party APIs your code depends on and alerts when spec changes affect your usage."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Hound Team" }]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing",
+]
+dependencies = [
+    "click>=8.1.0",
+    "pydantic>=2.5.0",
+    "pyyaml>=6.0.1",
+    "requests>=2.31.0",
+    "httpx>=0.25.0",
+    "jsonschema>=4.20.0",
+    "rich>=13.7.0",
+    "tabulate>=0.9.0",
+]
+
+[project.optional-dependencies]
+llm = [
+    "openai>=1.10.0",
+    "sentence-transformers>=2.3.0",
+]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.1.0",
+]
+
+[project.scripts]
+hound = "hound.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["hound"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]

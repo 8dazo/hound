@@ -1,0 +1,19 @@
+version: 1
+
+watch:
+  - name: stripe
+    spec_url: specs/stripe_v1.json
+    scan_paths:
+      - src/services/payments/
+    language: python
+    ignore_fields: []
+
+report:
+  github_issues:
+    enabled: false
+  slack:
+    enabled: false
+  min_severity: breaking
+
+llm:
+  provider: none
