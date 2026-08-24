@@ -235,6 +235,7 @@ class PRReviewer:
     ) -> str | None:
         """Generate OpenRouter-powered AI insights for the PR review."""
         import os
+
         api_key = self.config.llm.api_key or os.environ.get("OPENROUTER_API_KEY")
         if not api_key:
             return None
@@ -248,12 +249,18 @@ class PRReviewer:
             "X-Title": "Hound API Watchdog",
         }
 
-        sites_desc = "\n".join(
-            f"- `{s.method} {s.endpoint}` in `{s.file}:{s.line}`" for s in verified_sites[:10]
-        ) or "None detected"
-        findings_desc = "\n".join(
-            f"- `{f.change.method} {f.change.endpoint}`: {f.reason}" for f in findings[:10]
-        ) or "None (Clean integration)"
+        sites_desc = (
+            "\n".join(
+                f"- `{s.method} {s.endpoint}` in `{s.file}:{s.line}`" for s in verified_sites[:10]
+            )
+            or "None detected"
+        )
+        findings_desc = (
+            "\n".join(
+                f"- `{f.change.method} {f.change.endpoint}`: {f.reason}" for f in findings[:10]
+            )
+            or "None (Clean integration)"
+        )
 
         prompt = f"""You are Hound AI, an automated API watchdog reviewer.
 The pull request contains the following API call sites and compatibility findings:
@@ -269,7 +276,10 @@ Provide a concise, 2-3 sentence technical review commentary and recommendations 
         payload = {
             "model": model,
             "messages": [
-                {"role": "system", "content": "You are Hound AI, a CodeRabbit-style API compatibility review bot."},
+                {
+                    "role": "system",
+                    "content": "You are Hound AI, a CodeRabbit-style API compatibility review bot.",
+                },
                 {"role": "user", "content": prompt},
             ],
             "temperature": 0.2,
