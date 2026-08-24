@@ -1,0 +1,23 @@
+version: 1
+
+watch:
+  - name: stripe
+    spec_url: https://raw.githubusercontent.com/stripe/openapi/master/openapi/spec3.json
+    scan_paths:
+      - src/services/payments/
+    language: python
+
+report:
+  github_issues:
+    enabled: true
+    labels: ["hound", "dependency-risk"]
+    assignees: []
+  slack:
+    enabled: false
+    webhook_url: ${SLACK_WEBHOOK_URL}
+  min_severity: breaking
+
+llm:
+  provider: openrouter
+  model: stealth/ox-alpha
+  api_key: ${OPENROUTER_API_KEY}
