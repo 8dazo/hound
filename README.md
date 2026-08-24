@@ -204,11 +204,13 @@ Severity classification for structural changes is deterministic (rule-based on t
 
 ## Supported languages & API types
 
-**v1 (current):**
-- Spec format: OpenAPI 3.x / Swagger 2.0
-- Codebase scanning: Python (`requests`, `httpx`, and popular SDK call patterns)
+**Languages:**
+- **Python**: `requests`, `httpx`, HTTP clients, f-strings, variable URLs, and SDK calls (e.g. `stripe-python`, `openai-python`)
+- **TypeScript & JavaScript**: `fetch()`, `axios`, and JS/TS SDK calls (e.g. `stripe-node`, `@octokit/rest`)
 
-**Planned (see [Roadmap](#roadmap)):** TypeScript/JavaScript scanning, GraphQL schema diffing, docs-only (non-spec) API tracking via semantic diff.
+**Spec & Documentation Formats:**
+- **OpenAPI 3.x / Swagger 2.0**: Full structural diffing across endpoints, methods, parameters, and request/response schemas.
+- **Vendor Changelogs & RSS/Atom Feeds**: Unstructured documentation tracking via semantic chunk diffing and LLM severity classification.
 
 If your API has no published spec, or your language isn't supported yet, Hound will tell you explicitly rather than silently skipping — check `hound check --verbose` output for `unsupported_target` warnings.
 
@@ -218,20 +220,24 @@ If your API has no published spec, or your language isn't supported yet, Hound w
 hound/
 ├── hound/
 │   ├── fetchers/
-│   │   ├── openapi_fetcher.py     # spec retrieval + parsing
-│   │   └── docs_fetcher.py        # fallback for non-spec APIs
+│   │   ├── openapi_fetcher.py     # spec retrieval + parsing + $ref resolution
+│   │   ├── docs_fetcher.py        # heading-based documentation chunker
+│   │   └── changelog_scraper.py   # RSS/Atom and HTML changelog scraper
 │   ├── diffing/
-│   │   ├── spec_diff.py           # structural diff
-│   │   └── semantic_diff.py       # embedding-based diff for prose
+│   │   ├── spec_diff.py           # structural OpenAPI diff
+│   │   └── semantic_diff.py       # text/semantic diff for prose
 │   ├── usage_scanner/
-│   │   ├── ast_scanner.py         # AST walk for API call sites
-│   │   └── field_extractor.py     # endpoint/field usage table
+│   │   ├── ast_scanner.py         # Python AST scanner for API call sites
+│   │   ├── ts_scanner.py          # TypeScript / JavaScript usage scanner
+│   │   └── field_extractor.py     # endpoint & field usage dataflow table
 │   ├── correlator.py              # blast-radius matching
 │   ├── reporter/
-│   │   ├── github_issue.py
-│   │   └── slack_notify.py
+│   │   ├── github_issue.py        # idempotent GitHub Issues publisher
+│   │   └── slack_notify.py        # Slack webhook notifications
 │   ├── store/
-│   │   └── snapshot_store.py      # baseline persistence
+│   │   └── snapshot_store.py      # baseline persistence (.hound/snapshots/)
+│   ├── llm/
+│   │   └── classify.py            # prose severity classifier
 │   └── agent.py                   # orchestration (fetch → diff → scan → correlate → report)
 ├── cli.py
 ├── configs/schema.json            # versioned config schema
@@ -251,14 +257,15 @@ hound/
 | Detects spec changes | ✅ | ✅ | ❌ (version bumps only) |
 | Tells you *your* blast radius | ✅ | ❌ | ❌ |
 | File:line of affected code | ✅ | ❌ | ❌ |
-| Works with no spec (docs-only APIs) | 🔜 planned | ❌ | ❌ |
+| Works with no spec (docs-only APIs) | ✅ | ❌ | ❌ |
 | Noise level | Low (usage-filtered) | High (alerts on every change) | N/A |
 
 ## Roadmap
 
-- [ ] TypeScript/JavaScript AST scanning
+- [x] Python AST scanning
+- [x] TypeScript & JavaScript scanning
+- [x] Docs-only & RSS changelog tracking
 - [ ] GraphQL schema diffing
-- [ ] Docs-only API tracking (semantic diff without a formal spec)
 - [ ] Hosted mode (multi-repo dashboard, no self-managed cron)
 - [ ] VS Code extension surfacing warnings inline at the call site
 
